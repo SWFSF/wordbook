@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0e1120" />
+<meta name="description" content="记单词 —— 小学 / 初中 / 高中 / 大学词库，卡片记忆 + 拼写测试 + 打卡统计，可离线使用。" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png" />
+<link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="记单词" />
+<style>
+  html{-webkit-text-size-adjust:100%}
+  body{touch-action:manipulation;overscroll-behavior-y:none}
+</style>
+<title>记单词</title>
+<style>
+  :root{
+    --bg:#080a14;
+    --panel:rgba(28,33,58,.62);
+    --line:rgba(255,255,255,.10);
+    --line-strong:rgba(255,255,255,.18);
+    --accent:#7c5cff;
+    --accent2:#22d3ee;
+    --ok:#34d399;
+    --no:#fb7185;
+    --gold:#fbbf24;
+    --text:#eef1fb;
+    --muted:#8f96b3;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    display:flex;justify-content:center;
+    padding:22px 16px calc(22px + env(safe-area-inset-bottom));
+    overflow-x:hidden;
+  }
+
+  /* ---------- 风景背景（纯 CSS 绘制，无外部图片，静态不闪） ---------- */
+  .bg{
+    position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;
+    background:var(--sky);
+    transition:background 1.1s ease;
+  }
+  .bg .sun{
+    position:absolute;left:50%;top:var(--sun-y,58%);
+    width:min(46vw,320px);aspect-ratio:1;
+    transform:translate(-50%,-50%);border-radius:50%;
+    background:radial-gradient(circle,#fff 0%,var(--sun) 34%,transparent 70%);
+    opacity:1;transition:opacity .8s ease;
+  }
+  .bg .moon{
+    position:absolute;left:74%;top:14%;width:76px;height:76px;border-radius:50%;
+    background:radial-gradient(circle at 34% 32%,#fff,#d3dcf4 60%,#93a2c9);
+    box-shadow:0 0 46px 12px rgba(198,214,255,.40);
+    opacity:0;transition:opacity .8s ease;
+  }
+  .bg .stars{position:absolute;inset:0;opacity:0;transition:opacity .8s ease}
+  .bg .stars i{position:absolute;display:block;background:#fff;border-radius:50%}
+  .bg .range{position:absolute;left:-6%;width:112%;bottom:0}
+  .bg .r1{height:56%;background:var(--m1);
+    clip-path:polygon(0% 100%,0% 58%,10% 38%,19% 53%,31% 22%,43% 46%,55% 27%,67% 50%,79% 32%,89% 49%,100% 61%,100% 100%)}
+  .bg .r2{height:41%;background:var(--m2);
+    clip-path:polygon(0% 100%,0% 66%,13% 45%,27% 62%,38% 37%,52% 58%,64% 41%,78% 60%,90% 45%,100% 63%,100% 100%)}
+  .bg .r3{height:27%;background:var(--m3);
+    clip-path:polygon(0% 100%,0% 74%,16% 57%,33% 72%,48% 55%,63% 74%,80% 59%,100% 75%,100% 100%)}
+  .bg .mist{
+    position:absolute;left:0;right:0;bottom:0;height:48%;
+    background:linear-gradient(180deg,transparent,var(--mist));
+    opacity:.5;transition:opacity .8s ease;
+  }
+  .bg .vignette{
+    position:absolute;inset:0;
+    background:radial-gradient(125% 92% at 50% 38%,transparent 38%,rgba(3,5,12,.78) 100%);
+  }
+
+  /* 场景一：黄昏雪山湖 */
+  body[data-scene="dusk"]{
+    --sky:linear-gradient(180deg,#150f38 0%,#3d2360 24%,#7f3a66 46%,#cf5f43 66%,#f2a54e 84%,#f8d27a 100%);
+    --sun:#ffd88a; --sun-y:58%;
+    --m1:#2b1d4c; --m2:#1e1438; --m3:#120c26;
+    --mist:rgba(255,186,132,.30);
+  }
+  /* 场景二：深蓝星空 */
+  body[data-scene="night"]{
+    --sky:linear-gradient(180deg,#04060e 0%,#081026 34%,#0e1b3c 62%,#16294f 100%);
+    --sun:#7cc0ff; --sun-y:80%;
+    --m1:#0b1226; --m2:#070c1a; --m3:#04070f;
+    --mist:rgba(120,160,255,.20);
+  }
+  body[data-scene="night"] .bg .sun{opacity:0}
+  body[data-scene="night"] .bg .moon{opacity:1}
+  body[data-scene="night"] .bg .stars{opacity:1}
+  body[data-scene="night"] .bg .mist{opacity:.30}
+  /* 场景三：晨雾森林 */
+  body[data-scene="forest"]{
+    --sky:linear-gradient(180deg,#08201f 0%,#123c37 34%,#2b6b52 62%,#7fb177 100%);
+    --sun:#e6ffb0; --sun-y:26%;
+    --m1:#154034; --m2:#0e2c26; --m3:#081c19;
+    --mist:rgba(205,255,224,.28);
+  }
+  body[data-scene="forest"] .bg .sun{opacity:.85;width:min(56vw,420px)}
+  body[data-scene="forest"] .bg .mist{opacity:.42}
+
+  .app{
+    position:relative;z-index:1;width:100%;max-width:440px;
+    display:flex;flex-direction:column;gap:15px;
+  }
+
+  /* 顶栏 */
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  h1{margin:0;font-size:20px;letter-spacing:.6px;
+    background:linear-gradient(92deg,#fff,#b9a8ff 55%,#7fe6f5);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .sub{font-size:12px;color:var(--muted);margin-top:3px}
+  .sub b{color:#cfd5ee;font-weight:600}
+  .icon{
+    width:40px;height:40px;flex:0 0 auto;border-radius:12px;padding:0;
+    display:grid;place-items:center;font-size:17px;
+    background:var(--panel);border:1px solid var(--line);color:var(--text);
+    backdrop-filter:blur(12px);cursor:pointer;transition:transform .12s,border-color .2s;
+  }
+  .icon:hover{border-color:var(--line-strong)}
+  .icon:active{transform:scale(.93)}
+  .icon.off{opacity:.45}
+  .tools{display:flex;gap:8px;flex:0 0 auto}
+
+  /* 进度条 */
+  .bar{height:7px;border-radius:99px;background:rgba(255,255,255,.07);overflow:hidden}
+  .bar > i{
+    display:block;height:100%;width:0%;border-radius:99px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    box-shadow:0 0 14px rgba(124,92,255,.7);
+    transition:width .38s cubic-bezier(.3,1,.4,1);
+  }
+
+  /* 状态胶囊 */
+  .stats{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{
+    flex:1 1 0;min-width:0;text-align:center;
+    font-size:11.5px;color:var(--muted);letter-spacing:.2px;
+    background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:8px 6px;backdrop-filter:blur(12px);white-space:nowrap;
+  }
+  .pill b{display:block;font-size:15px;color:var(--text);font-weight:650;margin-top:2px}
+  .pill.hot{border-color:rgba(251,191,36,.5);box-shadow:0 0 18px -6px rgba(251,191,36,.65)}
+  .pill.hot b{color:var(--gold)}
+  .pop{animation:pop .42s cubic-bezier(.2,1.5,.4,1)}
+  @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.16)}100%{transform:scale(1)}}
+
+  /* ---------- 学习卡片：极简 · 点一下才给释义 ---------- */
+  .scene.enter{animation:cardIn .32s cubic-bezier(.2,.9,.3,1) both}
+  @keyframes cardIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  .card{
+    position:relative;width:100%;min-height:272px;padding:30px 22px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    text-align:center;border-radius:26px;cursor:pointer;
+    background:linear-gradient(165deg,rgba(38,44,74,.90),rgba(16,20,36,.95));
+    border:1px solid var(--line-strong);
+    box-shadow:0 28px 60px -34px #000, inset 0 1px 0 rgba(255,255,255,.06);
+    transition:border-color .45s ease,box-shadow .45s ease;
+  }
+  .card.open{
+    border-color:rgba(124,92,255,.5);
+    box-shadow:0 28px 60px -34px #000, 0 0 38px -16px rgba(124,92,255,.85);
+  }
+  .card .word{
+    font-size:clamp(30px,10vw,46px);font-weight:650;line-height:1.1;
+    letter-spacing:.5px;word-break:break-word;
+    transition:transform .38s cubic-bezier(.2,.9,.3,1);
+  }
+  .card.open .word{transform:translateY(-8px) scale(.93)}
+  .reveal{
+    display:flex;flex-direction:column;align-items:center;gap:10px;
+    max-height:0;opacity:0;overflow:hidden;
+    transition:max-height .45s cubic-bezier(.2,.9,.3,1),opacity .35s ease;
+  }
+  .card.open .reveal{max-height:300px;opacity:1}
+  .zh{font-size:clamp(20px,6.4vw,26px);font-weight:600;color:#cfd9ff}
+  .ex{font-size:13px;color:#9fb0d8;line-height:1.75;font-style:italic;max-width:30em}
+  .ex b{color:#ffd88a;font-style:normal;font-weight:600}
+  .hintline{font-size:12px;color:var(--muted);letter-spacing:.3px}
+  .card.open .hintline{display:none}
+  .badge{
+    position:absolute;top:14px;left:16px;
+    font-size:10.5px;letter-spacing:.6px;color:#cbb9ff;
+    background:rgba(124,92,255,.18);border:1px solid rgba(124,92,255,.4);
+    padding:3px 9px;border-radius:99px;
+  }
+  .speak{
+    position:absolute;top:11px;right:11px;width:38px;height:38px;
+    border-radius:12px;padding:0;display:grid;place-items:center;font-size:16px;
+    background:rgba(255,255,255,.06);border:1px solid var(--line);
+    color:var(--text);cursor:pointer;transition:transform .12s,background .2s;
+  }
+  .speak:hover{background:rgba(255,255,255,.13)}
+  .speak:active{transform:scale(.9)}
+  .speak.busy{animation:ring .6s ease}
+  @keyframes ring{0%,100%{transform:rotate(0)}25%{transform:rotate(-14deg)}75%{transform:rotate(14deg)}}
+
+  .dots{display:flex;gap:7px;align-items:center;justify-content:center}
+  .dots span{
+    width:8px;height:8px;border-radius:50%;
+    background:rgba(255,255,255,.16);transition:all .3s;
+  }
+  .dots span.on{background:var(--accent2);box-shadow:0 0 10px rgba(34,211,238,.9);transform:scale(1.15)}
+  .dots em{font-style:normal;font-size:11px;color:var(--muted);margin-left:4px}
+
+  /* 按钮 */
+  .actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  button{font:inherit;color:inherit;cursor:pointer;border:1px solid var(--line);
+    background:var(--panel);border-radius:15px;transition:transform .09s,filter .18s,box-shadow .18s}
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.4;cursor:default}
+  .actions button{padding:16px 12px;font-size:16px;font-weight:650;backdrop-filter:blur(12px)}
+  #btnUnknown{color:#ffc9d3;border-color:rgba(251,113,133,.42);
+    background:linear-gradient(180deg,rgba(251,113,133,.15),rgba(251,113,133,.05))}
+  #btnKnown{color:#b7f7db;border-color:rgba(52,211,153,.42);
+    background:linear-gradient(180deg,rgba(52,211,153,.15),rgba(52,211,153,.05))}
+  #btnUnknown:hover{box-shadow:0 0 22px -6px rgba(251,113,133,.75)}
+  #btnKnown:hover{box-shadow:0 0 22px -6px rgba(52,211,153,.75)}
+
+  footer{display:flex;gap:9px}
+  footer button{flex:1;padding:11px;font-size:12.5px;color:var(--muted);background:transparent}
+  footer button:hover{color:var(--text);border-color:var(--line-strong)}
+
+  /* 结算 */
+  .panel{
+    background:linear-gradient(165deg,rgba(40,46,80,.72),rgba(18,22,40,.85));
+    border:1px solid var(--line-strong);border-radius:24px;
+    padding:28px 20px;text-align:center;backdrop-filter:blur(16px);
+    box-shadow:0 26px 55px -32px #000;
+    animation:cardIn .45s cubic-bezier(.2,.9,.3,1) both;
+  }
+  .panel h2{margin:0 0 6px;font-size:24px}
+  .panel > p{margin:0 0 16px;color:var(--muted);font-size:13px;line-height:1.7}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:18px}
+  .grid div{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:12px 4px}
+  .grid b{display:block;font-size:19px;font-weight:700;color:#fff}
+  .grid span{font-size:11px;color:var(--muted)}
+  .go{width:100%;padding:16px;font-size:16px;font-weight:650;border-color:transparent;
+    background:linear-gradient(92deg,var(--accent),var(--accent2));color:#0a0c18;
+    box-shadow:0 14px 34px -14px rgba(124,92,255,.95)}
+  .panel .day{margin:0 0 14px;font-size:12.5px;color:#cbb9ff}
+
+  /* ---------- 拼写测试 ---------- */
+  .spell{
+    padding:24px 20px;border-radius:26px;
+    display:flex;flex-direction:column;gap:13px;
+    background:linear-gradient(165deg,rgba(38,44,74,.90),rgba(16,20,36,.95));
+    border:1px solid var(--line-strong);
+    box-shadow:0 28px 60px -34px #000;
+    animation:cardIn .32s cubic-bezier(.2,.9,.3,1) both;
+  }
+  .spellHead{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);letter-spacing:.3px}
+  .spellHead b{color:var(--accent2);font-weight:600}
+  .spellZh{font-size:clamp(22px,7vw,28px);font-weight:650;text-align:center;color:#cfd9ff}
+  .spellEx{font-size:12.5px;color:#9fb0d8;line-height:1.75;text-align:center;font-style:italic;min-height:0}
+  .spellEx u{color:#ffd88a;text-decoration:none;border-bottom:1px dashed rgba(255,216,138,.6);padding:0 3px}
+  #spellInput{
+    width:100%;padding:15px;text-align:center;
+    font-size:21px;font-weight:600;letter-spacing:1.5px;font-family:inherit;
+    background:#0c1020;color:var(--text);
+    border:1px solid var(--line);border-radius:15px;outline:none;
+    transition:border-color .2s,box-shadow .2s,color .2s;
+  }
+  #spellInput::placeholder{color:#545b78;font-size:14px;letter-spacing:.5px}
+  #spellInput:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.18)}
+  #spellInput.ok{border-color:rgba(52,211,153,.85);color:#b7f7db;
+    box-shadow:0 0 0 3px rgba(52,211,153,.16)}
+  #spellInput.bad{border-color:rgba(251,113,133,.85);color:#ffc9d3;
+    box-shadow:0 0 0 3px rgba(251,113,133,.16)}
+  .spellFb{min-height:21px;text-align:center;font-size:13.5px;letter-spacing:.3px}
+  .spellFb.ok{color:#7ef0c0}
+  .spellFb.bad{color:#ffa7b6}
+  .spellFb b{color:#fff;letter-spacing:.8px}
+
+  /* 词库选择 */
+  .bankList{display:flex;flex-direction:column;gap:8px;max-height:56vh;overflow:auto}
+  .bankItem{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 15px;border-radius:14px;cursor:pointer;
+    background:rgba(255,255,255,.045);border:1px solid var(--line);
+    transition:border-color .18s,background .18s,transform .08s;
+  }
+  .bankItem:hover{border-color:var(--line-strong);background:rgba(255,255,255,.08)}
+  .bankItem:active{transform:scale(.985)}
+  .bankItem.on{border-color:rgba(124,92,255,.75);background:rgba(124,92,255,.17);
+    box-shadow:0 0 24px -8px rgba(124,92,255,.9)}
+  .bankItem .bn{font-size:15px;font-weight:600}
+  .bankItem .bd{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .bankItem .bc{font-size:11.5px;color:var(--muted);text-align:right;white-space:nowrap}
+  .bankItem .bc b{display:block;font-size:14.5px;color:#cbb9ff}
+  .sheet .close{width:100%;padding:13px;font-size:14px;color:var(--muted);background:transparent}
+
+  [hidden]{display:none !important}
+
+  /* 词库弹层 */
+  .mask{position:fixed;inset:0;z-index:40;background:rgba(4,6,14,.74);
+    display:flex;align-items:flex-end;justify-content:center;padding:16px;
+    backdrop-filter:blur(5px);animation:fade .2s ease both}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .sheet{width:100%;max-width:440px;padding:20px;display:flex;flex-direction:column;gap:13px;
+    background:linear-gradient(165deg,#1a1f38,#12162a);
+    border:1px solid var(--line-strong);border-radius:22px;
+    animation:sheetUp .28s cubic-bezier(.2,.9,.3,1) both}
+  @keyframes sheetUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+  .sheet h3{margin:0;font-size:16px}
+  .sheet p{margin:0;font-size:12px;color:var(--muted);line-height:1.65}
+  .sheet code{background:rgba(255,255,255,.08);padding:1px 5px;border-radius:5px;font-size:11.5px}
+  textarea{
+    width:100%;height:230px;resize:vertical;padding:13px;
+    background:#0c1020;color:var(--text);border:1px solid var(--line);
+    border-radius:13px;font:13px/1.75 ui-monospace,Consolas,monospace;
+  }
+  textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.18)}
+  .sheet .row{display:flex;gap:10px}
+  .sheet .row button{flex:1;padding:14px;font-size:14.5px;font-weight:600}
+  #btnSave{border-color:transparent;background:linear-gradient(92deg,var(--accent),var(--accent2));color:#0a0c18}
+
+  #confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:35}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg" id="bg" aria-hidden="true">
+  <div class="sun"></div>
+  <div class="moon"></div>
+  <div class="stars" id="stars"></div>
+  <div class="range r1"></div>
+  <div class="range r2"></div>
+  <div class="range r3"></div>
+  <div class="mist"></div>
+  <div class="vignette"></div>
+</div>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<div class="app">
+
+  <header>
+    <div>
+      <h1>记单词</h1>
+      <div class="sub"><b id="bankName">小学</b> · 已掌握 <b id="mastered">0</b> / <b id="total">0</b></div>
+    </div>
+    <div class="tools">
+      <button class="icon" id="btnBank" title="选择词库" aria-label="选择词库">📚</button>
+      <button class="icon" id="btnScene" title="切换背景" aria-label="切换背景">🏔️</button>
+      <button class="icon" id="btnSound" title="音效开关" aria-label="音效开关">🔊</button>
+    </div>
+  </header>
+
+  <div class="bar"><i id="progressBar"></i></div>
+
+  <div class="stats">
+    <div class="pill" id="streakPill">连击<b id="streak">0</b></div>
+    <div class="pill">本组<b id="remaining">0</b></div>
+    <div class="pill">正确率<b id="acc">—</b></div>
+    <div class="pill" id="dayPill">连续<b id="dayStreak">0</b></div>
+  </div>
+
+  <section class="scene" id="scene">
+    <div class="card" id="card">
+      <span class="badge" id="newBadge" hidden>新词</span>
+      <button class="speak" id="btnSpeak" title="朗读" aria-label="朗读">🔊</button>
+      <div class="word" id="cardEn">—</div>
+      <div class="reveal" id="reveal">
+        <div class="zh" id="cardZh">—</div>
+        <div class="ex" id="cardEx" hidden></div>
+        <div class="dots" id="dots"><span></span><span></span><span></span><em id="dotsText"></em></div>
+      </div>
+      <div class="hintline" id="hintline">轻点卡片显示释义</div>
+    </div>
+  </section>
+
+  <section class="spell" id="spell" hidden>
+    <div class="spellHead"><span>拼写测试</span><span><b id="spellProgress">1 / 10</b></span></div>
+    <div class="spellZh" id="spellZh">—</div>
+    <div class="spellEx" id="spellEx" hidden></div>
+    <input id="spellInput" type="text" autocomplete="off" autocorrect="off"
+           autocapitalize="off" spellcheck="false" placeholder="输入英文单词，回车提交" />
+    <div class="spellFb" id="spellFb"></div>
+    <button class="go" id="btnSpell">提交</button>
+  </section>
+
+  <div class="actions" id="actions">
+    <button id="btnUnknown">不记得</button>
+    <button id="btnKnown">记得</button>
+  </div>
+
+  <section class="panel" id="done" hidden>
+    <h2 id="doneTitle">本组完成</h2>
+    <p id="doneDesc"></p>
+    <div class="grid">
+      <div><b id="statAcc">—</b><span>正确率</span></div>
+      <div><b id="statStreak">0</b><span>最高连击</span></div>
+      <div><b id="statTime">—</b><span>用时</span></div>
+    </div>
+    <p class="day" id="dayInfo"></p>
+    <button class="go" id="btnRestart">继续下一组</button>
+  </section>
+
+  <footer>
+    <button id="btnEdit">编辑词库</button>
+    <button id="btnReset">重置进度</button>
+  </footer>
+</div>
+
+<div class="mask" id="modal" hidden>
+  <div class="sheet">
+    <h3>编辑词库</h3>
+    <p>每行一个词，格式：<code>英文, 中文</code>。逗号、等号、制表符、竖线都支持，<code>#</code> 开头的行会被忽略。<br>保存后会存入「我的词库」，内置词库不受影响。</p>
+    <textarea id="listText" spellcheck="false"></textarea>
+    <div class="row">
+      <button id="btnCancel">取消</button>
+      <button id="btnSave">保存并开始</button>
+    </div>
+  </div>
+</div>
+
+<div class="mask" id="bankModal" hidden>
+  <div class="sheet">
+    <h3>选择词库</h3>
+    <p>切换词库不会丢掉已保存的进度，换回来还在。</p>
+    <div class="bankList" id="bankList"></div>
+    <button class="close" id="btnBankClose">关闭</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'wordbook.v2';
+  var MASTER_BOX = 3;
+
+  /* 词库数据：格式为 "英文=释义"，用 | 分隔。
+     按学段划分为小学 / 初中 / 高中 / 大学四份核心高频词表。 */
+  var BANK_DATA = {
+    primary:
+      'apple=苹果|banana=香蕉|orange=橙子|pear=梨|grape=葡萄|book=书|pen=钢笔|pencil=铅笔|' +
+      'ruler=尺子|bag=书包|desk=课桌|chair=椅子|teacher=老师|student=学生|school=学校|class=班级|' +
+      'friend=朋友|family=家庭|father=父亲|mother=母亲|brother=兄弟|sister=姐妹|grandpa=爷爷|grandma=奶奶|' +
+      'dog=狗|cat=猫|bird=鸟|fish=鱼|panda=熊猫|tiger=老虎|rabbit=兔子|monkey=猴子|' +
+      'red=红色的|blue=蓝色的|green=绿色的|yellow=黄色的|black=黑色的|white=白色的|' +
+      'one=一|two=二|three=三|four=四|five=五|six=六|seven=七|eight=八|nine=九|ten=十|' +
+      'egg=蛋|milk=牛奶|bread=面包|rice=米饭|water=水|cake=蛋糕|juice=果汁|noodles=面条|' +
+      'hand=手|head=头|eye=眼睛|ear=耳朵|nose=鼻子|mouth=嘴|foot=脚|hair=头发|' +
+      'run=跑|jump=跳|swim=游泳|sing=唱歌|dance=跳舞|draw=画画|read=读|write=写|listen=听|speak=说|play=玩|' +
+      'happy=高兴的|sad=伤心的|big=大的|small=小的|tall=高的|short=矮的；短的|hot=热的|cold=冷的|' +
+      'new=新的|old=旧的；老的|good=好的|nice=友好的|morning=早上|afternoon=下午|evening=傍晚|night=夜晚|' +
+      'today=今天|Monday=星期一|Sunday=星期日|spring=春天|summer=夏天|autumn=秋天|winter=冬天|' +
+      'sun=太阳|moon=月亮|star=星星|rain=雨|snow=雪|bike=自行车|bus=公共汽车|car=小汽车|train=火车|plane=飞机',
+
+    junior:
+      'answer=回答；答案|because=因为|beautiful=美丽的|believe=相信|borrow=借入|bring=带来|careful=仔细的|' +
+      'catch=抓住；赶上|change=改变；零钱|choose=选择|climb=攀登|collect=收集|compare=比较|complete=完成|' +
+      'continue=继续|cost=花费；成本|decide=决定|describe=描述|develop=发展|different=不同的|difficult=困难的|' +
+      'discover=发现|discuss=讨论|divide=分开；除|during=在……期间|enough=足够的|environment=环境|especially=尤其|' +
+      'excited=兴奋的|expensive=昂贵的|experience=经验；经历|explain=解释|famous=著名的|finally=最后|' +
+      'follow=跟随；遵循|foreign=外国的|forget=忘记|friendly=友好的|future=未来|happen=发生|health=健康|' +
+      'heavy=重的|helpful=有帮助的|history=历史|holiday=假日|however=然而|important=重要的|improve=改善|' +
+      'include=包括|increase=增加|interest=兴趣|introduce=介绍|invent=发明|knowledge=知识|language=语言|' +
+      'laugh=笑|lend=借出|luck=运气|maybe=也许|meaning=意思|medicine=药|memory=记忆|message=消息|mistake=错误|' +
+      'nature=自然|nervous=紧张的|notice=注意到|offer=提供|opinion=观点|perhaps=也许|polite=有礼貌的|' +
+      'popular=受欢迎的|practice=练习|prepare=准备|problem=问题|produce=生产|progress=进步|promise=承诺|' +
+      'protect=保护|provide=提供|realize=意识到|receive=收到|refuse=拒绝|remember=记得|repeat=重复|report=报告|' +
+      'return=返回；归还|serious=严肃的；严重的|several=几个|simple=简单的|since=自从；因为|society=社会|' +
+      'solve=解决|special=特别的|spend=花费|success=成功|suggest=建议|suppose=假定；认为|surprise=惊讶|' +
+      'trouble=麻烦|understand=理解|unusual=不寻常的|useful=有用的|usually=通常|value=价值|village=村庄|' +
+      'weather=天气|whether=是否|without=没有|wonder=想知道|worry=担心|wrong=错误的|yet=还；已经',
+
+    senior:
+      'abandon=放弃|absorb=吸收|abstract=抽象的|academic=学术的|accurate=准确的|achieve=实现；达到|' +
+      'acquire=获得|adapt=适应|adequate=充足的|adjust=调整|admire=钦佩|adopt=采纳；收养|advance=前进；进步|' +
+      'affect=影响|afford=负担得起|agriculture=农业|alternative=可替代的；选择|ambitious=有雄心的|analysis=分析|' +
+      'ancient=古代的|announce=宣布|anxious=焦虑的|apparent=明显的|appeal=吸引力；呼吁|appreciate=欣赏；感激|' +
+      'approach=方法；接近|appropriate=恰当的|approve=批准|argue=争论|arrange=安排|assess=评估|assume=假定|' +
+      'attempt=尝试|attitude=态度|attract=吸引|available=可获得的|aware=意识到的|balance=平衡|benefit=益处；使受益|' +
+      'capable=有能力的|category=类别|challenge=挑战|character=性格；角色|circumstance=情况|claim=声称；要求|' +
+      'comment=评论|commit=承诺；犯（错）|communicate=交流|community=社区|compete=竞争|complex=复杂的|' +
+      'concentrate=集中|conclude=得出结论|conduct=进行；行为|confirm=确认|conflict=冲突|confuse=使困惑|' +
+      'consequence=结果|consider=考虑|consist=由……组成|constant=持续的|construct=建造|consume=消耗|contain=包含|' +
+      'contribute=贡献|convenient=方便的|convince=使信服|current=当前的|decline=下降；拒绝|define=定义|' +
+      'demand=需求；要求|demonstrate=证明；演示|deny=否认|depend=依靠|deserve=值得|desire=渴望|despite=尽管|' +
+      'determine=决定；决心|distinguish=区分|distribute=分发|economy=经济|educate=教育|efficient=高效的|' +
+      'effort=努力|eliminate=消除|emerge=出现|emphasize=强调|encourage=鼓励|ensure=确保|establish=建立|' +
+      'estimate=估计|evidence=证据|exchange=交换|exist=存在|expand=扩大|expect=期望|experiment=实验|explore=探索|' +
+      'express=表达|extend=延伸|familiar=熟悉的|feature=特征|focus=聚焦|frequent=频繁的|generate=产生|' +
+      'graduate=毕业|identify=识别|ignore=忽视|imagine=想象|impact=影响|impress=使印象深刻|indicate=表明|' +
+      'individual=个人的|influence=影响|inform=通知|injure=伤害|innocent=无辜的|insist=坚持|inspire=激励|' +
+      'instant=立即的|intend=打算|interpret=解释|investigate=调查|involve=涉及|issue=问题；发行|judge=判断|' +
+      'justify=证明……正当|maintain=维持|major=主要的|manage=管理；设法做到|mention=提到|method=方法|' +
+      'motivate=激励|negative=消极的|obtain=获得|obvious=明显的|occupy=占据|occur=发生|opportunity=机会|' +
+      'oppose=反对|organize=组织|participate=参与|particular=特定的|perform=表演；执行|permanent=永久的|' +
+      'persuade=说服|policy=政策|positive=积极的|potential=潜力；潜在的|practical=实际的|predict=预测|' +
+      'prefer=更喜欢|prevent=阻止|previous=以前的|principle=原则|priority=优先|process=过程|promote=促进|' +
+      'propose=提议|prove=证明|publish=出版|pursue=追求|react=反应|recommend=推荐|reduce=减少|reflect=反映；反思|' +
+      'regard=认为|region=地区|regret=后悔|reject=拒绝|relate=关联|release=释放；发布|reliable=可靠的|' +
+      'remain=保持；剩下|remove=移除|replace=取代|represent=代表|require=需要|reserve=预订；保留|resist=抵抗|' +
+      'resource=资源|respond=回应|responsible=负责的|reveal=揭示|reward=奖励|satisfy=满足|seek=寻找|select=挑选|' +
+      'sense=感觉|separate=分开|significant=重要的|similar=相似的|source=来源|specific=具体的|standard=标准|' +
+      'strategy=策略|structure=结构|struggle=奋斗|succeed=成功|suffer=遭受|suitable=合适的|supply=供应|' +
+      'support=支持|survive=生存|suspect=怀疑|sustain=维持|tend=倾向于|threaten=威胁|tolerate=容忍|tradition=传统|' +
+      'transfer=转移|transform=转变|translate=翻译|treat=对待|trend=趋势|typical=典型的|unique=独特的|' +
+      'urgent=紧急的|various=各种各样的|virtue=美德|volunteer=志愿者|witness=目击者',
+
+    college:
+      'abandon=放弃|abnormal=反常的|accelerate=加速|accommodate=容纳|accompany=陪伴|accomplish=完成|' +
+      'accumulate=积累|acknowledge=承认|acquaintance=熟人|allocate=分配|ambiguous=模糊的|amend=修正|' +
+      'anticipate=预期|appliance=器具|arbitrary=任意的|assemble=集合；装配|assumption=假设|' +
+      'attribute=把……归因于|authentic=真实的|authority=权威|automatic=自动的|bargain=讨价还价|barrier=障碍|' +
+      'behave=表现|bias=偏见|capacity=容量；能力|casual=随意的|cease=停止|certificate=证书|chaos=混乱|' +
+      'chronic=慢性的|cite=引用|civilization=文明|coherent=连贯的|coincide=同时发生；巧合|collapse=崩溃|' +
+      'colleague=同事|commitment=承诺|commodity=商品|compensate=补偿|competent=有能力的|complement=补充|' +
+      'complicated=复杂的|comprehensive=全面的|compromise=妥协|conceive=构想|concept=概念|concise=简明的|' +
+      'condemn=谴责|confront=面对|consensus=共识|conserve=保护|considerable=相当大的|consistent=一致的|' +
+      'constitute=构成|constraint=限制|consult=咨询|contemporary=当代的|contradict=反驳|controversial=有争议的|' +
+      'correspond=符合；通信|corrupt=腐败的|crisis=危机|criterion=标准|crucial=关键的|cultivate=培养|currency=货币|' +
+      'deficit=赤字|deliberate=故意的|delicate=精致的|denote=表示|deprive=剥夺|derive=源自|desperate=绝望的|' +
+      'detect=察觉|deteriorate=恶化|device=装置|devote=奉献|dilemma=困境|diminish=减少|discipline=纪律；学科|' +
+      'discrimination=歧视|dispose=处理|distinct=明显的|distort=扭曲|diverse=多样的|domestic=国内的；家庭的|' +
+      'dominate=支配|drastic=激烈的|durable=耐用的|dynamic=动态的|elaborate=精心制作的|embarrass=使尴尬|' +
+      'empirical=经验的|enforce=执行|enhance=提高|enormous=巨大的|enthusiasm=热情|equivalent=等同的|' +
+      'essential=必要的|evaluate=评估|evident=明显的|evolve=演变|exaggerate=夸大|exceed=超过|exclude=排除|' +
+      'exclusive=独有的|exert=施加|exhaust=耗尽|explicit=明确的|exploit=开发；剥削|external=外部的|' +
+      'facilitate=促进|faculty=学院；才能|fascinate=使着迷|feasible=可行的|fluctuate=波动|fundamental=基本的|' +
+      'genuine=真正的|hypothesis=假设|identical=完全相同的|illustrate=说明|impose=强加|incentive=激励|' +
+      'incident=事件|inevitable=不可避免的|infer=推断|inherent=固有的|initiative=主动性|innovate=创新|' +
+      'inquiry=询问|integrate=整合|integrity=正直|intense=强烈的|interfere=干涉|intervene=干预|intuition=直觉|' +
+      'legislation=立法|legitimate=合法的|magnitude=量级；重要性|manipulate=操纵|mechanism=机制|mediate=调解|' +
+      'minimize=使最小化|modify=修改|negligible=微不足道的|notion=概念|obstacle=障碍|offset=抵消|ongoing=持续的|' +
+      'optimistic=乐观的|paradox=悖论|parameter=参数|perceive=察觉|persist=坚持|phenomenon=现象|' +
+      'plausible=貌似合理的|precise=精确的|preliminary=初步的|prevail=盛行|privilege=特权|profound=深刻的|' +
+      'prohibit=禁止|prominent=突出的|prompt=促使；迅速的|prospect=前景|provoke=激起|radical=激进的|' +
+      'reconcile=调和|redundant=多余的|refine=提炼|reinforce=加强|reluctant=不情愿的|render=使成为|' +
+      'resemble=类似|resolve=解决|restrain=抑制|retain=保留|rigorous=严格的|scrutiny=仔细审查|' +
+      'simultaneous=同时的|sophisticated=复杂的；老练的|speculate=推测|spontaneous=自发的|stability=稳定|' +
+      'statistics=统计|subsequent=随后的|substitute=代替|subtle=微妙的|sufficient=充足的|supplement=补充|' +
+      'suspend=暂停|temporary=临时的|terminate=终止|thorough=彻底的|transmit=传送|tremendous=巨大的|' +
+      'ultimate=最终的|undergo=经历|undertake=承担|unify=统一|utilize=利用|vague=模糊的|valid=有效的|' +
+      'verify=核实|versatile=多才多艺的|viable=可行的|vigorous=精力充沛的|violate=违反|vulnerable=脆弱的'
+  };
+
+  var BANK_META = [
+    { key: 'primary', name: '小学',      desc: '基础词汇 · 数字 / 颜色 / 动物 / 日常' },
+    { key: 'junior',  name: '初中',      desc: '中考核心 · 高频动词与形容词' },
+    { key: 'senior',  name: '高中',      desc: '高考核心 · 抽象概念与学术词' },
+    { key: 'college', name: '大学',      desc: '四六级词汇 · 长篇阅读高频' },
+    { key: 'all',     name: '全部混合',  desc: '以上全部 + 我的词库，自动去重' },
+    { key: 'custom',  name: '我的词库',  desc: '自己粘贴进来的单词' }
+  ];
+
+  /* 例句库：单词 → 真实语境例句。
+     目前覆盖小学词库全部单词；其余词库的词没有例句时，卡片会自动隐藏例句区。 */
+  var EXAMPLES = {
+    apple: 'I eat an apple every day.',
+    banana: 'The monkey is eating a banana.',
+    orange: 'This orange is very sweet.',
+    pear: 'She picked a pear from the tree.',
+    grape: 'These grapes are small and purple.',
+    book: 'This book is very interesting.',
+    pen: 'Can I borrow your pen?',
+    pencil: 'I draw a picture with a pencil.',
+    ruler: 'Use a ruler to draw a straight line.',
+    bag: 'My bag is full of books.',
+    desk: 'There is a lamp on the desk.',
+    chair: 'Please sit on this chair.',
+    teacher: 'Our teacher is very kind.',
+    student: 'She is a good student.',
+    school: 'We go to school at eight.',
+    class: 'Our class has forty students.',
+    friend: 'He is my best friend.',
+    family: 'I love my family.',
+    father: 'My father is a doctor.',
+    mother: 'My mother cooks very well.',
+    brother: 'My brother is taller than me.',
+    sister: 'My sister likes singing.',
+    grandpa: 'My grandpa tells good stories.',
+    grandma: 'Grandma makes nice cakes.',
+    dog: 'The dog is running in the park.',
+    cat: 'The cat is sleeping on the sofa.',
+    bird: 'A bird is singing in the tree.',
+    fish: 'There are many fish in the river.',
+    panda: 'The panda is eating bamboo.',
+    tiger: 'The tiger is a big cat.',
+    rabbit: 'The rabbit has long ears.',
+    monkey: 'The monkey is very clever.',
+    red: 'She is wearing a red coat.',
+    blue: 'The sky is blue today.',
+    green: 'The leaves turn green in spring.',
+    yellow: 'I have a yellow bag.',
+    black: 'He is wearing a black hat.',
+    white: 'The snow is white.',
+    one: 'I have only one brother.',
+    two: 'There are two apples on the plate.',
+    three: 'My sister is three years old.',
+    four: 'A table has four legs.',
+    five: 'I get up at five.',
+    six: 'There are six eggs in the box.',
+    seven: 'A week has seven days.',
+    eight: 'The shop opens at eight.',
+    nine: 'Nine students are in the room.',
+    ten: 'I can count to ten.',
+    egg: 'I eat an egg for breakfast.',
+    milk: 'Drink a glass of milk every day.',
+    bread: 'She bought some bread this morning.',
+    rice: 'We eat rice for lunch.',
+    water: 'Please give me some water.',
+    cake: 'This cake is delicious.',
+    juice: 'I like orange juice.',
+    noodles: 'My mother makes good noodles.',
+    hand: 'Wash your hands before dinner.',
+    head: 'He nodded his head.',
+    eye: 'She has beautiful eyes.',
+    ear: 'The rabbit has two long ears.',
+    nose: 'The dog has a good nose.',
+    mouth: 'Open your mouth, please.',
+    foot: 'My left foot hurts.',
+    hair: 'She has long black hair.',
+    run: 'He can run very fast.',
+    jump: 'The cat can jump very high.',
+    swim: 'I swim in the river in summer.',
+    sing: 'She sings very well.',
+    dance: 'They dance together every Sunday.',
+    draw: 'I like to draw animals.',
+    read: 'I read a book before bed.',
+    write: 'Please write your name here.',
+    listen: 'Listen to me carefully.',
+    speak: 'Can you speak English?',
+    play: 'The children play in the park.',
+    happy: 'I am happy to see you.',
+    sad: 'She looks sad today.',
+    big: 'This is a big house.',
+    small: 'The cat is small and soft.',
+    tall: 'He is the tallest boy in class.',
+    short: 'The rope is too short.',
+    hot: 'It is very hot in summer.',
+    cold: 'The water is very cold.',
+    new: 'I have a new bike.',
+    old: 'This is an old photo.',
+    good: 'You did a good job.',
+    nice: 'It is nice to meet you.',
+    morning: 'I run every morning.',
+    afternoon: 'We have class in the afternoon.',
+    evening: 'We watch TV in the evening.',
+    night: 'The stars come out at night.',
+    today: 'Today is my birthday.',
+    Monday: 'We have music class on Monday.',
+    Sunday: 'I visit my grandma on Sunday.',
+    spring: 'Flowers open in spring.',
+    summer: 'We go swimming in summer.',
+    autumn: 'The leaves fall in autumn.',
+    winter: 'It often snows in winter.',
+    sun: 'The sun rises in the east.',
+    moon: 'The moon is bright tonight.',
+    star: 'I can see many stars.',
+    rain: 'The rain is heavy today.',
+    snow: 'The snow covers the ground.',
+    bike: 'I ride my bike to school.',
+    bus: 'I take the bus to work.',
+    car: 'My father drives a car.',
+    train: 'The train is very fast.',
+    plane: 'The plane flies in the sky.'
+  };
+
+  function parseBank(str) {
+    var out = [];
+    (str || '').split('|').forEach(function (pair) {
+      var i = pair.indexOf('=');
+      if (i < 1) return;
+      var en = pair.slice(0, i).trim();
+      var zh = pair.slice(i + 1).trim();
+      if (en) out.push({ en: en, zh: zh });
+    });
+    return out;
+  }
+
+  var BANKS = {
+    primary: parseBank(BANK_DATA.primary),
+    junior:  parseBank(BANK_DATA.junior),
+    senior:  parseBank(BANK_DATA.senior),
+    college: parseBank(BANK_DATA.college),
+    custom:  []
+  };
+
+  var words = [];
+  var progress = {};
+  var soundOn = true;
+  var currentBank = 'primary';
+  var SCENES = ['dusk', 'night', 'forest'];
+  var sceneIdx = 0;
+
+  var GROUP_SIZE = 10;      // 每组学习的单词数
+
+  var sessionQueue = [];    // 本次学习计划里还没过完的词
+  var groupQueue = [];      // 当前组待过的词
+  var groupTotal = 0;       // 当前组词数
+  var groupWords = [];      // 当前组全部词，用于组末拼写测试
+  var current = null;
+
+  var right = 0, wrong = 0;
+  var streak = 0, bestStreak = 0;
+  var startedAt = 0;
+
+  var spellQueue = [], spellTotal = 0, spellRight = 0;
+  var spellCurrent = null, spellPhase = 'input';
+
+  var st = { lastDay: '', streak: 0, todayWords: {} };   // 打卡统计（按去重后的单词计）
+
+  var el = {};
+  ['mastered','total','progressBar','streak','streakPill','remaining','acc',
+   'scene','card','cardEn','cardZh','newBadge','btnSpeak','dots','dotsText',
+   'actions','done','doneTitle','doneDesc','statAcc','statStreak','statTime',
+   'btnRestart','btnUnknown','btnKnown','btnEdit','btnReset','btnSound','btnScene',
+   'bg','stars','bankName','btnBank','bankModal','bankList','btnBankClose',
+   'reveal','cardEx','hintline','spell','spellProgress','spellZh','spellEx',
+   'spellInput','spellFb','btnSpell','dayStreak','dayInfo',
+   'modal','listText','btnSave','btnCancel','confetti'].forEach(function (id) {
+    el[id] = document.getElementById(id);
+  });
+
+  /* ================= 存储 ================= */
+
+  function isWord(w) { return w && typeof w.en === 'string' && w.en.trim(); }
+
+  function load() {
+    var raw = null;
+    try { raw = localStorage.getItem(STORAGE_KEY); } catch (e) { raw = null; }
+    if (raw) {
+      try {
+        var d = JSON.parse(raw);
+        if (d && typeof d === 'object') {
+          // 兼容早期版本：那时只存一个 words 数组
+          var cust = Array.isArray(d.custom) ? d.custom : (Array.isArray(d.words) ? d.words : null);
+          if (cust) {
+            BANKS.custom = cust.filter(isWord).map(function (w) {
+              return { en: String(w.en).trim(), zh: String(w.zh || '').trim() };
+            });
+          }
+          progress = (d.progress && typeof d.progress === 'object') ? d.progress : {};
+          soundOn = d.soundOn !== false;
+          if (SCENES.indexOf(d.scene) >= 0) sceneIdx = SCENES.indexOf(d.scene);
+          if (bankExists(d.bank)) currentBank = d.bank;
+          if (d.stats && typeof d.stats === 'object') {
+            st.lastDay = d.stats.lastDay || '';
+            st.streak = +d.stats.streak || 0;
+            st.todayWords = (d.stats.todayWords && typeof d.stats.todayWords === 'object')
+              ? d.stats.todayWords : {};
+          }
+        }
+      } catch (e) { /* 数据损坏则退回内置词库 */ }
+    }
+    words = bankWords(currentBank);
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        bank: currentBank, custom: BANKS.custom, progress: progress,
+        soundOn: soundOn, scene: SCENES[sceneIdx], stats: st
+      }));
+    } catch (e) { /* 隐私模式下静默失败 */ }
+  }
+
+  /* ================= 单词状态 ================= */
+
+  function stat(en) {
+    if (!progress[en]) progress[en] = { box: 0, seen: 0, wrong: 0 };
+    return progress[en];
+  }
+  function isMastered(en) {
+    var s = progress[en];
+    return !!s && s.box >= MASTER_BOX;
+  }
+  function masteredCount() {
+    return words.filter(function (w) { return isMastered(w.en); }).length;
+  }
+  function pool() {
+    return words.filter(function (w) { return !isMastered(w.en); });
+  }
+
+  /* ================= 词库切换 ================= */
+
+  function bankExists(key) {
+    if (!key) return false;
+    if (key === 'all') return true;
+    return Object.prototype.hasOwnProperty.call(BANKS, key);
+  }
+
+  function bankWords(key) {
+    if (key === 'all') {
+      var seen = {}, out = [];
+      ['primary', 'junior', 'senior', 'college', 'custom'].forEach(function (k) {
+        BANKS[k].forEach(function (w) {
+          var id = w.en.toLowerCase();
+          if (seen[id]) return;
+          seen[id] = 1;
+          out.push(w);
+        });
+      });
+      return out;
+    }
+    return (BANKS[key] || []).slice();
+  }
+
+  function bankLabel(key) {
+    for (var i = 0; i < BANK_META.length; i++) {
+      if (BANK_META[i].key === key) return BANK_META[i].name;
+    }
+    return key || '';
+  }
+
+  function setBank(key) {
+    if (!bankExists(key)) return;
+    if (key === 'custom' && !BANKS.custom.length) {
+      alert('「我的词库」还是空的。先用「编辑词库」粘贴一些单词进来吧。');
+      return;
+    }
+    currentBank = key;
+    words = bankWords(key);
+    save();
+    closeBankPicker();
+    startRound();
+  }
+
+  function renderBankList() {
+    el.bankList.innerHTML = '';
+    BANK_META.forEach(function (m) {
+      var list = bankWords(m.key);
+      var done = list.filter(function (w) { return isMastered(w.en); }).length;
+
+      var item = document.createElement('div');
+      item.className = 'bankItem' + (m.key === currentBank ? ' on' : '');
+
+      var left = document.createElement('div');
+      var bn = document.createElement('div');
+      bn.className = 'bn';
+      bn.textContent = m.name;
+      var bd = document.createElement('div');
+      bd.className = 'bd';
+      bd.textContent = m.desc;
+      left.appendChild(bn);
+      left.appendChild(bd);
+
+      var right = document.createElement('div');
+      right.className = 'bc';
+      right.innerHTML = '<b>' + done + ' / ' + list.length + '</b>已掌握';
+
+      item.appendChild(left);
+      item.appendChild(right);
+      item.addEventListener('click', function () { setBank(m.key); });
+      el.bankList.appendChild(item);
+    });
+  }
+
+  function openBankPicker() {
+    renderBankList();
+    el.bankModal.hidden = false;
+  }
+  function closeBankPicker() { el.bankModal.hidden = true; }
+
+  /* ================= 音效 / 语音 ================= */
+
+  var actx = null;
+  function tone(freq, dur, type, vol) {
+    if (!soundOn) return;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!actx) actx = new AC();
+      if (actx.state === 'suspended' && actx.resume) actx.resume();
+      var t = actx.currentTime;
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol || 0.05, t + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(t); o.stop(t + dur + 0.03);
+    } catch (e) { /* 音频不可用时忽略 */ }
+  }
+  function sfxRight() { tone(660, 0.09, 'sine', 0.05); setTimeout(function () { tone(990, 0.13, 'sine', 0.045); }, 78); }
+  function sfxWrong() { tone(200, 0.18, 'triangle', 0.05); }
+  function sfxWin()   { [523, 659, 784, 1046].forEach(function (f, i) { setTimeout(function () { tone(f, 0.28, 'sine', 0.05); }, i * 115); }); }
+
+  function speak(text) {
+    try {
+      if (!text || !('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'en-US';
+      u.rate = 0.88;
+      window.speechSynthesis.speak(u);
+      el.btnSpeak.classList.add('busy');
+      setTimeout(function () { el.btnSpeak.classList.remove('busy'); }, 620);
+    } catch (e) { /* 无语音引擎时忽略 */ }
+  }
+
+  /* ================= 风景背景 ================= */
+
+  var SCENE_ICON = { dusk: '🏔️', night: '🌌', forest: '🌲' };
+
+  function applyScene() {
+    var name = SCENES[sceneIdx];
+    document.body.setAttribute('data-scene', name);
+    el.btnScene.textContent = SCENE_ICON[name] || '🏔️';
+  }
+
+  function cycleScene() {
+    sceneIdx = (sceneIdx + 1) % SCENES.length;
+    applyScene();
+    save();
+    tone(560, 0.12, 'sine', 0.04);
+  }
+
+  function buildStars() {
+    if (!el.stars || el.stars.childNodes.length) return;
+    for (var i = 0; i < 110; i++) {
+      var s = document.createElement('i');
+      var size = Math.random() < 0.86 ? 1 : 2;
+      s.style.left = (Math.random() * 100).toFixed(2) + '%';
+      s.style.top = (Math.random() * 64).toFixed(2) + '%';
+      s.style.width = size + 'px';
+      s.style.height = size + 'px';
+      s.style.opacity = (0.25 + Math.random() * 0.7).toFixed(2);
+      el.stars.appendChild(s);
+    }
+  }
+
+  /* ================= 出题 ================= */
+
+  function shuffle(a) {
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function reveal() {
+    if (!current) return;
+    if (el.card.classList.contains('open')) return;
+    el.card.classList.add('open');
+    if (soundOn) speak(current.en);
+  }
+
+  /* 开一次学习：把没掌握的词排成队列，再按组切分 */
+  function startRound() {
+    var list = pool();
+    if (!list.length) list = words.slice();   // 全部掌握后走整轮复习
+    sessionQueue = shuffle(list.slice());
+    right = 0; wrong = 0; streak = 0; bestStreak = 0;
+    startedAt = Date.now();
+
+    el.streakPill.classList.remove('hot');
+    el.spell.hidden = true;
+    el.btnKnown.disabled = false;
+    el.btnUnknown.disabled = false;
+
+    if (!sessionQueue.length) { current = null; showSummary(); return; }
+    nextGroup();
+  }
+
+  function nextGroup() {
+    if (!sessionQueue.length) { current = null; showSummary(); return; }
+    groupQueue = sessionQueue.splice(0, GROUP_SIZE);
+    groupTotal = groupQueue.length;
+    groupWords = groupQueue.slice();
+    startedAt = Date.now();
+
+    el.spell.hidden = true;
+    el.scene.hidden = false;
+    el.actions.hidden = false;
+    el.done.hidden = true;
+    el.btnKnown.disabled = false;
+    el.btnUnknown.disabled = false;
+    nextCard();
+  }
+
+  function animateIn() {
+    el.scene.classList.remove('enter');
+    void el.scene.offsetWidth;
+    el.scene.classList.add('enter');
+  }
+
+  function nextCard() {
+    if (!groupQueue.length) { current = null; startSpell(); return; }
+
+    current = groupQueue.shift();
+    var s = stat(current.en);
+
+    el.card.classList.remove('open');
+    el.cardEn.textContent = current.en;
+    el.cardZh.textContent = current.zh || '（未填写释义）';
+
+    var ex = EXAMPLES[current.en];
+    if (ex) {
+      el.cardEx.innerHTML = highlight(ex, current.en);
+      el.cardEx.hidden = false;
+    } else {
+      el.cardEx.textContent = '';
+      el.cardEx.hidden = true;
+    }
+
+    el.newBadge.hidden = s.seen > 0;
+    renderDots(s.box);
+    updateHud();
+    animateIn();
+  }
+
+  function renderDots(box) {
+    var spans = el.dots.querySelectorAll('span');
+    for (var i = 0; i < spans.length; i++) {
+      spans[i].className = i < box ? 'on' : '';
+    }
+    el.dotsText.textContent = box >= MASTER_BOX ? '已掌握' : (box + ' / ' + MASTER_BOX);
+  }
+
+  function updateHud() {
+    var left = groupQueue.length + (current ? 1 : 0);
+    var totalAnswers = right + wrong;
+
+    el.remaining.textContent = String(left);
+    el.streak.textContent = String(streak);
+    el.bankName.textContent = bankLabel(currentBank);
+    el.mastered.textContent = String(masteredCount());
+    el.total.textContent = String(words.length);
+    el.acc.textContent = totalAnswers ? Math.round((right / totalAnswers) * 100) + '%' : '—';
+    el.dayStreak.textContent = String(dayStreak());
+
+    var pct = groupTotal ? ((groupTotal - left) / groupTotal) * 100 : 0;
+    el.progressBar.style.width = pct + '%';
+  }
+
+  function bumpStreak() {
+    el.streakPill.classList.remove('pop');
+    void el.streakPill.offsetWidth;
+    el.streakPill.classList.add('pop');
+    el.streakPill.classList.toggle('hot', streak >= 3);
+  }
+
+  function markKnown() {
+    if (!current) return;
+    var s = stat(current.en);
+    s.box = Math.min(MASTER_BOX, s.box + 1);
+    s.seen++;
+    right++;
+    streak++;
+    if (streak > bestStreak) bestStreak = streak;
+    touchDay(current.en);
+    save();
+    sfxRight();
+    bumpStreak();
+    nextCard();
+  }
+
+  function markUnknown() {
+    if (!current) return;
+    var s = stat(current.en);
+    s.box = 0;
+    s.seen++;
+    s.wrong++;
+    wrong++;
+    streak = 0;
+    touchDay(current.en);
+    save();
+    sfxWrong();
+    bumpStreak();
+    groupQueue.push(current); // 放回本组队尾，本组里还会再考一次
+    nextCard();
+  }
+
+  /* ================= 拼写测试 ================= */
+
+  function startSpell() {
+    spellQueue = shuffle(groupWords.slice());
+    spellTotal = spellQueue.length;
+    spellRight = 0;
+    el.scene.hidden = true;
+    el.actions.hidden = true;
+    el.done.hidden = true;
+    el.spell.hidden = false;
+    nextSpell();
+  }
+
+  function nextSpell() {
+    if (!spellQueue.length) { finishGroup(); return; }
+
+    spellCurrent = spellQueue.shift();
+    spellPhase = 'input';
+    el.spellZh.textContent = spellCurrent.zh || '（未填写释义）';
+
+    var ex = EXAMPLES[spellCurrent.en];
+    if (ex) {
+      el.spellEx.innerHTML = blanked(ex, spellCurrent.en);
+      el.spellEx.hidden = false;
+    } else {
+      el.spellEx.textContent = '';
+      el.spellEx.hidden = true;
+    }
+
+    el.spellInput.value = '';
+    el.spellInput.disabled = false;
+    el.spellInput.className = '';
+    el.spellFb.className = 'spellFb';
+    el.spellFb.textContent = '';
+    el.btnSpell.textContent = '提交';
+    el.spellProgress.textContent = (spellTotal - spellQueue.length) + ' / ' + spellTotal;
+    try { el.spellInput.focus(); } catch (e) { /* 忽略 */ }
+  }
+
+  function submitSpell() {
+    if (el.spell.hidden || !spellCurrent) return;
+
+    if (spellPhase === 'input') {
+      var val = String(el.spellInput.value || '').trim().toLowerCase();
+      if (!val) { try { el.spellInput.focus(); } catch (e) { /* 忽略 */ } return; }
+
+      if (val === spellCurrent.en.toLowerCase()) {
+        spellRight++;
+        el.spellInput.className = 'ok';
+        el.spellFb.className = 'spellFb ok';
+        el.spellFb.textContent = '✓ 拼写正确';
+        sfxRight();
+      } else {
+        el.spellInput.className = 'bad';
+        el.spellFb.className = 'spellFb bad';
+        el.spellFb.innerHTML = '✗ 正确答案 <b>' + esc(spellCurrent.en) + '</b>';
+        sfxWrong();
+      }
+
+      touchDay(spellCurrent.en);
+      save();
+      spellPhase = 'feedback';
+      el.spellInput.disabled = true;
+      el.btnSpell.textContent = '下一个';
+      if (soundOn) speak(spellCurrent.en);
+    } else {
+      nextSpell();
+    }
+  }
+
+  function finishGroup() {
+    el.spell.hidden = true;
+    el.scene.hidden = true;
+    el.actions.hidden = true;
+    el.done.hidden = false;
+    showSummary();
+  }
+
+  function continueSession() {
+    if (sessionQueue.length) { nextGroup(); return; }
+    startRound();
+  }
+
+  /* ================= 结算 ================= */
+
+  function fmtTime(ms) {
+    var s = Math.max(1, Math.round(ms / 1000));
+    if (s < 60) return s + ' 秒';
+    return Math.floor(s / 60) + ' 分 ' + (s % 60) + ' 秒';
+  }
+
+  function showSummary() {
+    el.scene.hidden = true;
+    el.actions.hidden = true;
+    el.done.hidden = false;
+    el.progressBar.style.width = '100%';
+    el.remaining.textContent = '0';
+    el.mastered.textContent = String(masteredCount());
+    el.dayStreak.textContent = String(dayStreak());
+
+    var answered = right + wrong;
+    el.statAcc.textContent = answered ? Math.round((right / answered) * 100) + '%' : '—';
+    el.statStreak.textContent = String(bestStreak);
+    el.statTime.textContent = fmtTime(Date.now() - startedAt);
+    el.dayInfo.textContent = '🔥 连续打卡 ' + dayStreak() + ' 天 · 今日已学 ' + todayCount() + ' 个词';
+
+    var unfinished = pool().length;
+    if (sessionQueue.length) {
+      el.doneTitle.textContent = '本组完成';
+      el.doneDesc.textContent = '本组 ' + groupTotal + ' 个词已过完，拼写正确 ' +
+        spellRight + ' / ' + spellTotal + '。休息一下再来下一组。';
+      el.btnRestart.textContent = '继续下一组（还剩 ' + sessionQueue.length + ' 个）';
+    } else if (!unfinished) {
+      el.doneTitle.textContent = '🎉 这个词库全部掌握了';
+      el.doneDesc.textContent = '「' + bankLabel(currentBank) + '」共 ' + words.length +
+        ' 个词全部达到熟练。可以换个词库，或者整轮复习再走一遍。';
+      el.btnRestart.textContent = '整轮复习';
+    } else {
+      el.doneTitle.textContent = '✅ 本轮完成';
+      el.doneDesc.textContent = '本次计划的词已全部过完，还有 ' + unfinished +
+        ' 个词没达到熟练，下一轮会优先安排它们。';
+      el.btnRestart.textContent = '继续下一轮（' + unfinished + ' 个）';
+    }
+
+    sfxWin();
+    fireConfetti();
+  }
+
+  /* ================= 文本与日期工具 ================= */
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function wordRe(word) {
+    return new RegExp('\\b' + String(word).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\w*\\b', 'ig');
+  }
+
+  function highlight(sentence, word) {
+    try { return esc(sentence).replace(wordRe(word), function (m) { return '<b>' + m + '</b>'; }); }
+    catch (e) { return esc(sentence); }
+  }
+
+  function blanked(sentence, word) {
+    try { return esc(sentence).replace(wordRe(word), '<u>＿＿＿</u>'); }
+    catch (e) { return esc(sentence); }
+  }
+
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function dayStr(d) { return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()); }
+  function yesterday() { var d = new Date(); d.setDate(d.getDate() - 1); return dayStr(d); }
+
+  function todayCount() {
+    return st.lastDay === dayStr(new Date()) ? Object.keys(st.todayWords || {}).length : 0;
+  }
+  function dayStreak() {
+    return (st.lastDay === dayStr(new Date()) || st.lastDay === yesterday()) ? st.streak : 0;
+  }
+  function touchDay(word) {
+    var today = dayStr(new Date());
+    if (st.lastDay !== today) {
+      st.streak = (st.lastDay === yesterday()) ? st.streak + 1 : 1;
+      st.lastDay = today;
+      st.todayWords = {};
+    }
+    if (word) st.todayWords[word] = 1;
+  }
+
+  /* ================= 撒花 ================= */
+
+  var confettiRAF = null;
+  function fireConfetti() {
+    var cv = el.confetti;
+    if (!cv || !cv.getContext) return;
+    var ctx = cv.getContext('2d');
+    var dpr = window.devicePixelRatio || 1;
+    var w = cv.width = Math.floor(window.innerWidth * dpr);
+    var h = cv.height = Math.floor(window.innerHeight * dpr);
+    var colors = ['#7c5cff', '#22d3ee', '#34d399', '#fbbf24', '#fb7185', '#ffffff'];
+    var parts = [];
+
+    for (var i = 0; i < 140; i++) {
+      parts.push({
+        x: w * 0.5 + (Math.random() - 0.5) * w * 0.55,
+        y: h * 0.40 + (Math.random() - 0.5) * 70,
+        vx: (Math.random() - 0.5) * 9 * dpr,
+        vy: (-Math.random() * 11 - 3) * dpr,
+        s: (4 + Math.random() * 7) * dpr,
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 0.32,
+        c: colors[(Math.random() * colors.length) | 0]
+      });
+    }
+
+    var t0 = performance.now();
+    var LIFE = 2700;
+    if (confettiRAF) cancelAnimationFrame(confettiRAF);
+
+    (function frame(now) {
+      var e = now - t0;
+      ctx.clearRect(0, 0, w, h);
+      for (var k = 0; k < parts.length; k++) {
+        var p = parts[k];
+        p.vy += 0.34 * dpr;
+        p.vx *= 0.995;
+        p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - e / LIFE);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.c;
+        ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.6);
+        ctx.restore();
+      }
+      if (e < LIFE) confettiRAF = requestAnimationFrame(frame);
+      else { ctx.clearRect(0, 0, w, h); confettiRAF = null; }
+    })(t0);
+  }
+
+  /* ================= 词库编辑 ================= */
+
+  function openEditor() {
+    el.listText.value = words.map(function (w) { return w.en + ', ' + w.zh; }).join('\n');
+    el.modal.hidden = false;
+    el.listText.focus();
+  }
+
+  function parseList(text) {
+    var out = [], seen = {};
+    text.split('\n').forEach(function (line) {
+      line = line.replace(/^\s+/, '').replace(/\s+$/, '');
+      if (!line || line.charAt(0) === '#') return;
+      var m = line.match(/^(.*?)\s*[,，=\t|]\s*(.+)$/);
+      var en = (m ? m[1] : line).trim();
+      var zh = (m ? m[2] : '').trim();
+      if (!en) return;
+      var key = en.toLowerCase();
+      if (seen[key]) return;
+      seen[key] = 1;
+      out.push({ en: en, zh: zh });
+    });
+    return out;
+  }
+
+  function saveEditor() {
+    var list = parseList(el.listText.value);
+    if (!list.length) { alert('至少要有 1 个单词。每行格式：英文, 中文'); return; }
+    BANKS.custom = list;
+    currentBank = 'custom';
+    words = list.slice();
+    save();
+    el.modal.hidden = true;
+    startRound();
+  }
+
+  function resetProgress() {
+    if (!confirm('清空所有学习记录？单词本身会保留。')) return;
+    progress = {};
+    save();
+    startRound();
+  }
+
+  function toggleSound() {
+    soundOn = !soundOn;
+    el.btnSound.textContent = soundOn ? '🔊' : '🔇';
+    el.btnSound.classList.toggle('off', !soundOn);
+    save();
+    if (soundOn) sfxRight();
+  }
+
+  /* ================= 事件绑定 ================= */
+
+  el.card.addEventListener('click', reveal);
+
+  /* 手机上左右滑动 = 不记得 / 记得（需先看过释义，避免误触） */
+  var tX = 0, tY = 0, tracking = false;
+  el.card.addEventListener('touchstart', function (e) {
+    var t = e.touches && e.touches[0];
+    if (!t) return;
+    tX = t.clientX; tY = t.clientY; tracking = true;
+  }, { passive: true });
+  el.card.addEventListener('touchend', function (e) {
+    if (!tracking) return;
+    tracking = false;
+    var t = e.changedTouches && e.changedTouches[0];
+    if (!t) return;
+    var dx = t.clientX - tX, dy = t.clientY - tY;
+    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.5) return;
+    if (!el.card.classList.contains('open')) return;
+    if (dx > 0) markKnown(); else markUnknown();
+  }, { passive: true });
+
+  el.btnSpell.addEventListener('click', submitSpell);
+  el.spellInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); submitSpell(); }
+  });
+  el.btnSpeak.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (current) speak(current.en);
+  });
+  ['btnKnown', 'btnUnknown', 'btnRestart', 'btnEdit', 'btnReset', 'btnSound', 'btnScene', 'btnBank']
+    .forEach(function (id) {
+      el[id].addEventListener('click', function (e) { e.stopPropagation(); });
+    });
+  el.btnKnown.addEventListener('click', markKnown);
+  el.btnUnknown.addEventListener('click', markUnknown);
+  el.btnRestart.addEventListener('click', continueSession);
+  el.btnEdit.addEventListener('click', openEditor);
+  el.btnReset.addEventListener('click', resetProgress);
+  el.btnSound.addEventListener('click', toggleSound);
+  el.btnScene.addEventListener('click', cycleScene);
+  el.btnBank.addEventListener('click', openBankPicker);
+  el.btnBankClose.addEventListener('click', closeBankPicker);
+  el.bankModal.addEventListener('click', function (e) {
+    if (e.target === el.bankModal) closeBankPicker();
+  });
+  el.btnSave.addEventListener('click', saveEditor);
+  el.btnCancel.addEventListener('click', function () { el.modal.hidden = true; });
+  el.modal.addEventListener('click', function (e) {
+    if (e.target === el.modal) el.modal.hidden = true;
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (!el.modal.hidden) {
+      if (e.key === 'Escape') el.modal.hidden = true;
+      return;
+    }
+    if (!el.bankModal.hidden) {
+      if (e.key === 'Escape') closeBankPicker();
+      return;
+    }
+    if (e.target && e.target.tagName === 'INPUT') {
+      if (e.key === 'Enter') { e.preventDefault(); submitSpell(); }
+      return;
+    }
+    if (!el.done.hidden) return;
+    if (!el.spell.hidden) return;
+    if (e.code === 'Space') { e.preventDefault(); reveal(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); markKnown(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); markUnknown(); }
+    else if (e.key && e.key.toLowerCase() === 'p') { e.preventDefault(); if (current) speak(current.en); }
+  });
+
+  load();
+  el.btnSound.textContent = soundOn ? '🔊' : '🔇';
+  el.btnSound.classList.toggle('off', !soundOn);
+  applyScene();
+  buildStars();
+  startRound();
+})();
+</script>
+<script>
+  // 离线缓存：装到主屏后断网也能用
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("./sw.js").catch(function () { /* 注册失败不影响使用 */ });
+    });
+  }
+</script>
+</body>
+</html>
